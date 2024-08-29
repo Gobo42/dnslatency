@@ -64,7 +64,6 @@ func main() {
 						fmt.Println("Didn't find matching request for ", myreq)
 					}
 				}
-
 			} else {
 				re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+) ServFail`)
 				m := re.FindStringSubmatch(inp)
@@ -90,7 +89,6 @@ func main() {
 							fmt.Println("Didn't find matching request for ", myreq)
 						}
 					}
-
 				}
 				if debug {
 					fmt.Println("Ignored packet")
