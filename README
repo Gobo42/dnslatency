@@ -1,3 +1,13 @@
 dns latency calculator from tcpdump
+(matt.hum@hpe.com)
 
+dump locally
+tcpdump -ni ens192 udp port 53 | ./dnslatency
+
+to send to syslog add wrapper and send
 tcpdump -ni ens192 udp port 53 | ./dnslatency | sed "s/^/<14>$(hostname -i) /" | nc -u <sysloghost> 514
+
+Optional command line vars
+-D      Print Debug messages
+-ms     Suppress all requests < 1 ms
+
