@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,7 +18,12 @@ type dnsreq struct {
 }
 
 func main() {
-	debug := false
+	debugptr := flag.Bool("D", false, "Enable Debug output")
+	msptr := flag.Bool("ms", false, "ignore anything < 1ms")
+	flag.Parse()
+	debug := *debugptr
+	msonly := *msptr
+
 	var reqs []dnsreq
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -53,7 +59,13 @@ func main() {
 				for a := 0; a < l; a++ {
 					if reqs[a].recno == myreq {
 						delta := t1.Sub(reqs[a].reqtime)
-						fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+						if msonly {
+							if delta.Milliseconds() != 0 {
+								fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+							}
+						} else {
+							fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+						}
 						reqs = append(reqs[:a], reqs[a+1:]...)
 						a = l + 1
 						found = true
@@ -70,7 +82,7 @@ func main() {
 				if len(m) > 0 {
 					myreq, _ := strconv.Atoi(m[2])
 					if debug {
-						fmt.Println("Found SERVFAIL for req ", myreq, " at ", m[1], ": ", inp)
+						fmt.Println("Found SERVFAIL for req", myreq, "at", m[1], ":", inp)
 					}
 					t1, _ := time.Parse(time.TimeOnly, m[1])
 					l := len(reqs)
@@ -78,7 +90,13 @@ func main() {
 					for a := 0; a < l; a++ {
 						if reqs[a].recno == myreq {
 							delta := t1.Sub(reqs[a].reqtime)
-							fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+							if msonly {
+								if delta.Milliseconds() != 0 {
+									fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+								}
+							} else {
+								fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+							}
 							reqs = append(reqs[:a], reqs[a+1:]...)
 							a = l + 1
 							found = true
@@ -89,9 +107,74 @@ func main() {
 							fmt.Println("Didn't find matching request for ", myreq)
 						}
 					}
-				}
-				if debug {
-					fmt.Println("Ignored packet")
+				} else {
+					re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+) NXDomain`)
+					m := re.FindStringSubmatch(inp)
+					if len(m) > 0 {
+						myreq, _ := strconv.Atoi(m[2])
+						if debug {
+							fmt.Println("Found NXDomain for req", myreq, "at", m[1], ":", inp)
+						}
+						t1, _ := time.Parse(time.TimeOnly, m[1])
+						l := len(reqs)
+						found := false
+						for a := 0; a < l; a++ {
+							if reqs[a].recno == myreq {
+								delta := t1.Sub(reqs[a].reqtime)
+								if msonly {
+									if delta.Milliseconds() != 0 {
+										fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+									}
+								} else {
+									fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+								}
+								reqs = append(reqs[:a], reqs[a+1:]...)
+								a = l + 1
+								found = true
+							}
+						}
+						if !found {
+							if debug {
+								fmt.Println("Didn't find matching request for ", myreq)
+							}
+						}
+					} else {
+						re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+) .* CNAME `)
+						m := re.FindStringSubmatch(inp)
+						if len(m) > 0 {
+							myreq, _ := strconv.Atoi(m[2])
+							if debug {
+								fmt.Println("Found CNAME for req", myreq, "at", m[1], ":", inp)
+							}
+							t1, _ := time.Parse(time.TimeOnly, m[1])
+							l := len(reqs)
+							found := false
+							for a := 0; a < l; a++ {
+								if reqs[a].recno == myreq {
+									delta := t1.Sub(reqs[a].reqtime)
+									if msonly {
+										if delta.Milliseconds() != 0 {
+											fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+										}
+									} else {
+										fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+									}
+									reqs = append(reqs[:a], reqs[a+1:]...)
+									a = l + 1
+									found = true
+								}
+							}
+							if !found {
+								if debug {
+									fmt.Println("Didn't find matching request for ", myreq)
+								}
+							}
+						} else {
+							if debug {
+								fmt.Println("Ignored packet")
+							}
+						}
+					}
 				}
 			}
 		}
