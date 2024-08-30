@@ -26,3 +26,5 @@ Optional command line vars
 -rep <val>  Tracks DNS server reputation (outstanding requests). Requires threshold value
             Note: Be aware that at some point all servers will reach this threshold, it depends on time. Does not track rate.
 
+Windows executable was tested with this version of tcpdump for windows (https://chiselapp.com/user/rkeene/repository/tcpdump-windows-wrapper/home)
+
