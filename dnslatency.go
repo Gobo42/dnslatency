@@ -19,18 +19,48 @@ type dnsreq struct {
 
 func main() {
 	debugptr := flag.Bool("D", false, "Enable Debug output")
+	clrptr := flag.Bool("c", false, "Print Debug output in color")
 	msptr := flag.Bool("ms", false, "ignore anything < 1ms")
 	flag.Parse()
 	debug := *debugptr
 	msonly := *msptr
+
+	var Reset = ""
+	var Red = ""
+	var Green = ""
+	var Yellow = ""
+	var Blue = ""
+	var Magenta = ""
+	//var Cyan = ""
+	var Gray = ""
+	var White = ""
+	if *clrptr {
+		Reset = "\033[0m"
+		Red = "\033[31m"
+		Green = "\033[32m"
+		Yellow = "\033[33m"
+		Blue = "\033[34m"
+		Magenta = "\033[35m"
+		//Cyan = "\033[36m"
+		Gray = "\033[37m"
+		White = "\033[97m"
+	}
 
 	var reqs []dnsreq
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		inp := scanner.Text()
-		re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\+ [^A]*(?P<isreq>A+\?) ([\w\.\-\d]+) `)
+		re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\+.* [^A]*(?P<isreq>A+\?) ([_\w\.\-\d]+) `)
 		m := re.FindStringSubmatch(inp)
+		if len(m) == 0 {
+			re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\+ (?P<isreq>PTR\?) ([_\w\.\-\d]+) `)
+			m = re.FindStringSubmatch(inp)
+		}
+		if len(m) == 0 {
+			re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\+.* (?P<isreq>SRV\?) ([_\w\.\-\d]+) `)
+			m = re.FindStringSubmatch(inp)
+		}
 		if len(m) > 0 {
 			myreq, _ := strconv.Atoi(m[2])
 			var hostname string
@@ -40,7 +70,7 @@ func main() {
 				hostname = m[4]
 			}
 			if debug {
-				fmt.Println("found request for ", hostname, "at ", m[1], ": ", inp)
+				fmt.Println(Green+"Got request "+White, myreq, Green+"for "+Gray, hostname, Green+"at ", m[1], ": "+Reset, inp)
 			}
 			t1, _ := time.Parse(time.TimeOnly, m[1])
 			item := dnsreq{reqtime: t1, recno: myreq, host: hostname}
@@ -48,10 +78,18 @@ func main() {
 		} else {
 			re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\*`)
 			m := re.FindStringSubmatch(inp)
+			if len(m) == 0 {
+				re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\D*.* A \d`)
+				m = re.FindStringSubmatch(inp)
+			}
+			if len(m) == 0 {
+				re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\D*.* PTR [\w\d]`)
+				m = re.FindStringSubmatch(inp)
+			}
 			if len(m) > 0 {
 				myreq, _ := strconv.Atoi(m[2])
 				if debug {
-					fmt.Println("found response to req", myreq, "at", m[1], ":", inp)
+					fmt.Println(Blue+"Found response to req"+White, myreq, Green+"at", m[1], ":"+Reset, inp)
 				}
 				t1, _ := time.Parse(time.TimeOnly, m[1])
 				l := len(reqs)
@@ -73,7 +111,7 @@ func main() {
 				}
 				if !found {
 					if debug {
-						fmt.Println("Didn't find matching request for ", myreq)
+						fmt.Println(Yellow+"Didn't find matching request for "+Reset, myreq)
 					}
 				}
 			} else {
@@ -82,7 +120,7 @@ func main() {
 				if len(m) > 0 {
 					myreq, _ := strconv.Atoi(m[2])
 					if debug {
-						fmt.Println("Found SERVFAIL for req", myreq, "at", m[1], ":", inp)
+						fmt.Println(Magenta+"Found SERVFAIL for req"+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
 					}
 					t1, _ := time.Parse(time.TimeOnly, m[1])
 					l := len(reqs)
@@ -104,7 +142,7 @@ func main() {
 					}
 					if !found {
 						if debug {
-							fmt.Println("Didn't find matching request for ", myreq)
+							fmt.Println(Yellow+"Didn't find matching request for "+Reset, myreq)
 						}
 					}
 				} else {
@@ -113,7 +151,7 @@ func main() {
 					if len(m) > 0 {
 						myreq, _ := strconv.Atoi(m[2])
 						if debug {
-							fmt.Println("Found NXDomain for req", myreq, "at", m[1], ":", inp)
+							fmt.Println(Magenta+"Found NXDomain for req"+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
 						}
 						t1, _ := time.Parse(time.TimeOnly, m[1])
 						l := len(reqs)
@@ -135,7 +173,7 @@ func main() {
 						}
 						if !found {
 							if debug {
-								fmt.Println("Didn't find matching request for ", myreq)
+								fmt.Println(Yellow+"Didn't find matching request for "+Reset, myreq)
 							}
 						}
 					} else {
@@ -144,7 +182,7 @@ func main() {
 						if len(m) > 0 {
 							myreq, _ := strconv.Atoi(m[2])
 							if debug {
-								fmt.Println("Found CNAME for req", myreq, "at", m[1], ":", inp)
+								fmt.Println(Magenta+"Found CNAME for req"+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
 							}
 							t1, _ := time.Parse(time.TimeOnly, m[1])
 							l := len(reqs)
@@ -166,14 +204,15 @@ func main() {
 							}
 							if !found {
 								if debug {
-									fmt.Println("Didn't find matching request for ", myreq)
+									fmt.Println(Yellow+"Didn't find matching request for "+Reset, myreq)
 								}
 							}
 						} else {
 							if debug {
-								fmt.Println("Ignored packet")
+								fmt.Println(Red+"Ignored packet"+White, inp, Reset)
 							}
 						}
+
 					}
 				}
 			}
