@@ -24,10 +24,19 @@ type dnsserverrep struct {
 
 var debug bool
 var extradebug bool
+var Reset = ""
+var Red = ""
+var Green = ""
+var Yellow = ""
+var Blue = ""
+var Magenta = ""
+var Cyan = ""
+var Gray = ""
+var White = ""
 
 func modrep(inrep []dnsserverrep, inserver string, inmodrep int) []dnsserverrep {
 	if extradebug {
-		fmt.Println("adding", inmodrep, "to", inserver+"'s rep")
+		fmt.Println(Cyan+"Adding", inmodrep, "to"+White, inserver+Cyan+"'s rep"+Reset)
 	}
 	found := false
 	for a := 0; a < len(inrep); a++ {
@@ -35,13 +44,13 @@ func modrep(inrep []dnsserverrep, inserver string, inmodrep int) []dnsserverrep 
 			inrep[a].rep += inmodrep
 			found = true
 			if extradebug {
-				fmt.Println("Found", inserver, ". New rep is", inrep[a].rep)
+				fmt.Println(Cyan+"Found"+White, inserver, Cyan+". New rep is", inrep[a].rep, Reset)
 			}
 		}
 	}
 	if !found {
 		if extradebug {
-			fmt.Println("Not found. adding", inserver, "with rep", inmodrep)
+			fmt.Println(Cyan+"Not found. adding"+White, inserver, Cyan+"with rep", inmodrep, Reset)
 		}
 		inrep = append(inrep, dnsserverrep{server: inserver, rep: inmodrep})
 	}
@@ -73,16 +82,6 @@ func main() {
 	if extradebug {
 		debug = true
 	}
-
-	var Reset = ""
-	var Red = ""
-	var Green = ""
-	var Yellow = ""
-	var Blue = ""
-	var Magenta = ""
-	var Cyan = ""
-	var Gray = ""
-	var White = ""
 	if *clrptr {
 		Reset = "\033[0m"
 		Red = "\033[31m"
