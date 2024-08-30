@@ -17,13 +17,62 @@ type dnsreq struct {
 	host    string
 }
 
+type dnsserverrep struct {
+	server string
+	rep    int
+}
+
+var debug bool
+var extradebug bool
+
+func modrep(inrep []dnsserverrep, inserver string, inmodrep int) []dnsserverrep {
+	if extradebug {
+		fmt.Println("adding", inmodrep, "to", inserver+"'s rep")
+	}
+	found := false
+	for a := 0; a < len(inrep); a++ {
+		if inrep[a].server == inserver {
+			inrep[a].rep += inmodrep
+			found = true
+			if extradebug {
+				fmt.Println("Found", inserver, ". New rep is", inrep[a].rep)
+			}
+		}
+	}
+	if !found {
+		if extradebug {
+			fmt.Println("Not found. adding", inserver, "with rep", inmodrep)
+		}
+		inrep = append(inrep, dnsserverrep{server: inserver, rep: inmodrep})
+	}
+	return inrep
+}
+
+func checkrep(inrep []dnsserverrep, val int) (result bool, servernames []string) {
+	result = false
+	for a := 0; a < len(inrep); a++ {
+		if inrep[a].rep > val {
+			result = true
+			servernames = append(servernames, inrep[a].server)
+		}
+	}
+	return
+}
+
 func main() {
 	debugptr := flag.Bool("D", false, "Enable Debug output")
+	extradebugptr := flag.Bool("DD", false, "Extra Debug")
 	clrptr := flag.Bool("c", false, "Print Debug output in color")
 	msptr := flag.Bool("ms", false, "ignore anything < 1ms")
+	repptr := flag.Int("rep", 0, "Enable DNS server reputation for outstanding requests. Requires value")
 	flag.Parse()
-	debug := *debugptr
+	debug = *debugptr
 	msonly := *msptr
+	dnsrep := *repptr
+	extradebug = *extradebugptr
+	if extradebug {
+		debug = true
+	}
 
 	var Reset = ""
 	var Red = ""
@@ -31,7 +80,7 @@ func main() {
 	var Yellow = ""
 	var Blue = ""
 	var Magenta = ""
-	//var Cyan = ""
+	var Cyan = ""
 	var Gray = ""
 	var White = ""
 	if *clrptr {
@@ -41,16 +90,51 @@ func main() {
 		Yellow = "\033[33m"
 		Blue = "\033[34m"
 		Magenta = "\033[35m"
-		//Cyan = "\033[36m"
+		Cyan = "\033[36m"
 		Gray = "\033[37m"
 		White = "\033[97m"
 	}
-
 	var reqs []dnsreq
+	var dnsrepdb []dnsserverrep
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		inp := scanner.Text()
+		srvre := regexp.MustCompile(` ([_\w\d\.\-]+)\.domain[ :]`)
+		srvm := srvre.FindStringSubmatch(inp)
+		if len(srvm) == 0 {
+			srvre := regexp.MustCompile(` ([_\w\d\.\-]+)\.53[ :]`)
+			srvm = srvre.FindStringSubmatch(inp)
+		}
+		var dnsserver string
+		if len(srvm) == 0 {
+			if debug {
+				fmt.Println(Red+"Couldn't determine DNS server: "+White, inp, Reset)
+			}
+			dnsserver = "unknown"
+		} else {
+			dnsserver = srvm[1]
+			if debug {
+				fmt.Println(Cyan+"Got DNS Server "+Yellow, dnsserver, Reset)
+			}
+		}
+		if dnsrep != 0 {
+			var servers []string
+			check, servers := checkrep(dnsrepdb, dnsrep)
+			if check {
+				for a := 0; a < len(servers); a++ {
+					if debug {
+						fmt.Println(Red+"DNS Server"+Yellow, servers[a], Red+"Has not replied to more than", dnsrep, "requests", Reset)
+					} else {
+						fmt.Println("Server", servers[a], "is over the threshold of outstanding requests")
+					}
+
+				}
+			}
+			if extradebug {
+				fmt.Println(Cyan+"dnsrepdb = "+White, dnsrepdb, Reset)
+			}
+		}
 		re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\+.* [^A]*(?P<isreq>A+\?) ([_\w\.\-\d]+) `)
 		m := re.FindStringSubmatch(inp)
 		if len(m) == 0 {
@@ -75,6 +159,9 @@ func main() {
 			t1, _ := time.Parse(time.TimeOnly, m[1])
 			item := dnsreq{reqtime: t1, recno: myreq, host: hostname}
 			reqs = append(reqs, item)
+			if dnsrep != 0 {
+				dnsrepdb = modrep(dnsrepdb, dnsserver, 1)
+			}
 		} else {
 			re := regexp.MustCompile(`^(?P<mytime>[\d:\.]+) IP.*: (?P<myreqno>\d+)\*`)
 			m := re.FindStringSubmatch(inp)
@@ -107,6 +194,9 @@ func main() {
 						reqs = append(reqs[:a], reqs[a+1:]...)
 						a = l + 1
 						found = true
+						if dnsrep != 0 {
+							dnsrepdb = modrep(dnsrepdb, dnsserver, -1)
+						}
 					}
 				}
 				if !found {
@@ -138,6 +228,9 @@ func main() {
 							reqs = append(reqs[:a], reqs[a+1:]...)
 							a = l + 1
 							found = true
+							if dnsrep != 0 {
+								dnsrepdb = modrep(dnsrepdb, dnsserver, -1)
+							}
 						}
 					}
 					if !found {
@@ -169,6 +262,9 @@ func main() {
 								reqs = append(reqs[:a], reqs[a+1:]...)
 								a = l + 1
 								found = true
+								if dnsrep != 0 {
+									dnsrepdb = modrep(dnsrepdb, dnsserver, -1)
+								}
 							}
 						}
 						if !found {
@@ -200,6 +296,9 @@ func main() {
 									reqs = append(reqs[:a], reqs[a+1:]...)
 									a = l + 1
 									found = true
+									if dnsrep != 0 {
+										dnsrepdb = modrep(dnsrepdb, dnsserver, -1)
+									}
 								}
 							}
 							if !found {
