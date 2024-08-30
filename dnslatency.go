@@ -15,6 +15,7 @@ type dnsreq struct {
 	reqtime time.Time
 	recno   int
 	host    string
+	dserver string
 }
 
 type dnsserverrep struct {
@@ -74,10 +75,12 @@ func main() {
 	clrptr := flag.Bool("c", false, "Print Debug output in color")
 	msptr := flag.Bool("ms", false, "ignore anything < 1ms")
 	repptr := flag.Int("rep", 0, "Enable DNS server reputation for outstanding requests. Requires value")
+	showsvrptr := flag.Bool("v", false, "show the DNS server call was made to")
 	flag.Parse()
 	debug = *debugptr
 	msonly := *msptr
 	dnsrep := *repptr
+	showsvr := *showsvrptr
 	extradebug = *extradebugptr
 	if extradebug {
 		debug = true
@@ -156,7 +159,7 @@ func main() {
 				fmt.Println(Green+"Got request "+White, myreq, Green+"for "+Gray, hostname, Green+"at ", m[1], ": "+Reset, inp)
 			}
 			t1, _ := time.Parse(time.TimeOnly, m[1])
-			item := dnsreq{reqtime: t1, recno: myreq, host: hostname}
+			item := dnsreq{reqtime: t1, recno: myreq, host: hostname, dserver: dnsserver}
 			reqs = append(reqs, item)
 			if dnsrep != 0 {
 				dnsrepdb = modrep(dnsrepdb, dnsserver, 1)
@@ -175,20 +178,28 @@ func main() {
 			if len(m) > 0 {
 				myreq, _ := strconv.Atoi(m[2])
 				if debug {
-					fmt.Println(Blue+"Found response to req"+White, myreq, Green+"at", m[1], ":"+Reset, inp)
+					fmt.Println(Blue+"Found response to req "+White, myreq, Green+"at", m[1], ":"+Reset, inp)
 				}
 				t1, _ := time.Parse(time.TimeOnly, m[1])
 				l := len(reqs)
 				found := false
 				for a := 0; a < l; a++ {
-					if reqs[a].recno == myreq {
+					if (reqs[a].recno == myreq) && (reqs[a].dserver == dnsserver) {
 						delta := t1.Sub(reqs[a].reqtime)
 						if msonly {
 							if delta.Milliseconds() != 0 {
-								fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+								fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+								if showsvr {
+									fmt.Print(" from server", dnsserver)
+								}
+								fmt.Println(" is", delta.Round(time.Millisecond))
 							}
 						} else {
-							fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+							fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+							if showsvr {
+								fmt.Print(" from server", dnsserver)
+							}
+							fmt.Println(" is", delta)
 						}
 						reqs = append(reqs[:a], reqs[a+1:]...)
 						a = l + 1
@@ -209,20 +220,28 @@ func main() {
 				if len(m) > 0 {
 					myreq, _ := strconv.Atoi(m[2])
 					if debug {
-						fmt.Println(Magenta+"Found SERVFAIL for req"+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
+						fmt.Println(Magenta+"Found SERVFAIL for req "+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
 					}
 					t1, _ := time.Parse(time.TimeOnly, m[1])
 					l := len(reqs)
 					found := false
 					for a := 0; a < l; a++ {
-						if reqs[a].recno == myreq {
+						if (reqs[a].recno == myreq) && (reqs[a].dserver == dnsserver) {
 							delta := t1.Sub(reqs[a].reqtime)
 							if msonly {
 								if delta.Milliseconds() != 0 {
-									fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+									fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+									if showsvr {
+										fmt.Print(" from server", dnsserver)
+									}
+									fmt.Println(" is", delta.Round(time.Millisecond))
 								}
 							} else {
-								fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+								fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+								if showsvr {
+									fmt.Print(" from server", dnsserver)
+								}
+								fmt.Println(" is", delta)
 							}
 							reqs = append(reqs[:a], reqs[a+1:]...)
 							a = l + 1
@@ -243,20 +262,28 @@ func main() {
 					if len(m) > 0 {
 						myreq, _ := strconv.Atoi(m[2])
 						if debug {
-							fmt.Println(Magenta+"Found NXDomain for req"+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
+							fmt.Println(Magenta+"Found NXDomain for req "+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
 						}
 						t1, _ := time.Parse(time.TimeOnly, m[1])
 						l := len(reqs)
 						found := false
 						for a := 0; a < l; a++ {
-							if reqs[a].recno == myreq {
+							if (reqs[a].recno == myreq) && (reqs[a].dserver == dnsserver) {
 								delta := t1.Sub(reqs[a].reqtime)
 								if msonly {
 									if delta.Milliseconds() != 0 {
-										fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+										fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+										if showsvr {
+											fmt.Print(" from server", dnsserver)
+										}
+										fmt.Println(" is", delta.Round(time.Millisecond))
 									}
 								} else {
-									fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+									fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+									if showsvr {
+										fmt.Print(" from server", dnsserver)
+									}
+									fmt.Println(" is", delta)
 								}
 								reqs = append(reqs[:a], reqs[a+1:]...)
 								a = l + 1
@@ -277,20 +304,28 @@ func main() {
 						if len(m) > 0 {
 							myreq, _ := strconv.Atoi(m[2])
 							if debug {
-								fmt.Println(Magenta+"Found CNAME for req"+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
+								fmt.Println(Magenta+"Found CNAME for req "+White, myreq, Magenta+"at", m[1], ":"+Reset, inp)
 							}
 							t1, _ := time.Parse(time.TimeOnly, m[1])
 							l := len(reqs)
 							found := false
 							for a := 0; a < l; a++ {
-								if reqs[a].recno == myreq {
+								if (reqs[a].recno == myreq) && (reqs[a].dserver == dnsserver) {
 									delta := t1.Sub(reqs[a].reqtime)
 									if msonly {
 										if delta.Milliseconds() != 0 {
-											fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta.Round(time.Millisecond))
+											fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+											if showsvr {
+												fmt.Print(" from server", dnsserver)
+											}
+											fmt.Println(" is", delta.Round(time.Millisecond))
 										}
 									} else {
-										fmt.Println("DNS Delay for req", myreq, "on", reqs[a].host, "is", delta)
+										fmt.Print("DNS Delay for req ", myreq, " on ", reqs[a].host)
+										if showsvr {
+											fmt.Print(" from server", dnsserver)
+										}
+										fmt.Println(" is", delta)
 									}
 									reqs = append(reqs[:a], reqs[a+1:]...)
 									a = l + 1

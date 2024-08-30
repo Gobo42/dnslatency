@@ -23,6 +23,7 @@ Optional command line vars
 -DD         Extra debug
 -c          Add color to Debug to make it easier to read
 -ms         Suppress all requests < 1 ms
+-v          Shows destination dns server in output
 -rep <val>  Tracks DNS server reputation (outstanding requests). Requires threshold value
             Note: Be aware that at some point all servers will reach this threshold, it depends on time. Does not track rate.
 
